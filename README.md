@@ -49,10 +49,10 @@ export AWS_ACCESS_KEY_ID=
 export AWS_SECRET_ACCESS_KEY=
 export AWS_SESSION_TOKEN=
 ```
-- Store the files needed for the TFE Airgap installation under the `./airgap` directory, See the notes [here](./airgap/README.md)
+- Store the files needed for the TFE installation under the `./files` directory, See the notes [here](./files/README.md)
 - create a file called `variables.auto.tfvars` with the following contents and your own values
 ```
-tag_prefix               = "patrick-airgap2"                          # TAG prefix for names to easily find your AWS resources
+tag_prefix               = "patrick-disk"                          # TAG prefix for names to easily find your AWS resources
 region                   = "eu-north-1"                               # Region to create the environment
 vpc_cidr                 = "10.234.0.0/16"                            # subnet mask that can be used 
 ami                      = "ami-09f0506c9ef0fb473"                    # AMI of the Ubuntu image  
