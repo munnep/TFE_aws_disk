@@ -8,7 +8,7 @@ from diagrams.aws.database import RDSPostgresqlInstance
 # Variables
 title = "VPC with 1 public subnet for the TFE server"
 outformat = "png"
-filename = "diagram-airgap"
+filename = "diagram-tfe_external_disk"
 direction = "TB"
 
 
