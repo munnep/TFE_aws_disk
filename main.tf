@@ -95,6 +95,7 @@ resource "aws_security_group" "default-sg" {
 
 resource "aws_s3_bucket" "tfe-bucket-software" {
   bucket = "${var.tag_prefix}-software"
+  force_destroy = true
 
   tags = {
     Name = "${var.tag_prefix}-software"
@@ -173,7 +174,29 @@ resource "aws_iam_role_policy" "policy" {
         "Resource" : "*"
       }
     ]
-  })
+  }
+  )
+}
+
+resource "aws_iam_role_policy" "policy2" {
+  name = "${var.tag_prefix}-pricing"
+  role = aws_iam_role.role.id
+
+  # Terraform's "jsonencode" function converts a
+  # Terraform expression result to valid JSON syntax.
+  policy = jsonencode({
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": [
+          "pricing:*"
+        ],
+        "Effect": "Allow",
+        "Resource": "*"
+      }
+    ]
+  }
+  )
 }
 
 # code idea from https://itnext.io/lets-encrypt-certs-with-terraform-f870def3ce6d
@@ -304,6 +327,8 @@ resource "aws_instance" "tfe_server" {
     volume_size = 50
 
   }
+
+
 
 
   iam_instance_profile = aws_iam_instance_profile.profile.name
