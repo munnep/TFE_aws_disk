@@ -94,11 +94,17 @@ resource "aws_security_group" "default-sg" {
 }
 
 resource "aws_s3_bucket" "tfe-bucket-software" {
-  bucket = "${var.tag_prefix}-software"
+  bucket        = "${var.tag_prefix}-software"
+  force_destroy = true
 
   tags = {
     Name = "${var.tag_prefix}-software"
   }
+  timeouts {
+    create = "2m"
+
+  }
+
 }
 
 
@@ -112,13 +118,14 @@ resource "aws_s3_object" "object_license" {
     aws_s3_bucket.tfe-bucket-software
   ]
 
+
 }
 
 
-resource "aws_s3_bucket_acl" "tfe-bucket" {
-  bucket = aws_s3_bucket.tfe-bucket-software.id
-  acl    = "private"
-}
+# resource "aws_s3_bucket_acl" "tfe-bucket" {
+#   bucket = aws_s3_bucket.tfe-bucket-software.id
+#   acl    = "private"
+# }
 
 resource "aws_iam_role" "role" {
   name = "${var.tag_prefix}-role"
@@ -173,7 +180,29 @@ resource "aws_iam_role_policy" "policy" {
         "Resource" : "*"
       }
     ]
-  })
+    }
+  )
+}
+
+resource "aws_iam_role_policy" "policy2" {
+  name = "${var.tag_prefix}-pricing"
+  role = aws_iam_role.role.id
+
+  # Terraform's "jsonencode" function converts a
+  # Terraform expression result to valid JSON syntax.
+  policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Action" : [
+          "pricing:*"
+        ],
+        "Effect" : "Allow",
+        "Resource" : "*"
+      }
+    ]
+    }
+  )
 }
 
 # code idea from https://itnext.io/lets-encrypt-certs-with-terraform-f870def3ce6d
@@ -193,6 +222,9 @@ resource "acme_registration" "registration" {
 resource "acme_certificate" "certificate" {
   account_key_pem = acme_registration.registration.account_key_pem
   common_name     = "${var.dns_hostname}.${var.dns_zonename}"
+
+  recursive_nameservers        = ["1.1.1.1:53"]
+  disable_complete_propagation = true
 
   dns_challenge {
     provider = "route53"
@@ -267,22 +299,22 @@ resource "aws_ebs_volume" "tfe_swap" {
 
 resource "aws_ebs_volume" "tfe_docker" {
   availability_zone = local.az1
-  size              = 100
+  size              = 41
   # default is the gp2 disk
   # type              = "gp2"
   # faster disks is the IOPS version
   type = "io2"
-  iops = 2000
+  iops = 3000
 }
 
 resource "aws_ebs_volume" "tfe_storage" {
   availability_zone = local.az1
-  size              = 150
+  size              = 42
   # default is the gp2 disk
   # type              = "gp2"
   # faster disks is the IOPS version
   type = "io2"
-  iops = 2000
+  iops = 3000
 }
 
 resource "aws_key_pair" "default-key" {
@@ -290,9 +322,22 @@ resource "aws_key_pair" "default-key" {
   public_key = var.public_key
 }
 
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+  owners = ["099720109477"]
+}
+
 resource "aws_instance" "tfe_server" {
-  ami           = var.ami
-  instance_type = "t3.xlarge"
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.2xlarge"
   key_name      = "${var.tag_prefix}-key"
 
   network_interface {
@@ -302,20 +347,23 @@ resource "aws_instance" "tfe_server" {
 
   root_block_device {
     volume_size = 50
-
+    volume_type = "io2"
+    iops        = 3000
   }
+
+
 
 
   iam_instance_profile = aws_iam_instance_profile.profile.name
 
   user_data = templatefile("${path.module}/scripts/user-data.sh", {
-    tag_prefix         = var.tag_prefix
-    filename_license   = var.filename_license
-    dns_hostname       = var.dns_hostname
-    tfe-private-ip     = cidrhost(cidrsubnet(var.vpc_cidr, 8, 1), 22)
-    tfe_password       = var.tfe_password
-    dns_zonename       = var.dns_zonename
-    region             = var.region
+    tag_prefix           = var.tag_prefix
+    filename_license     = var.filename_license
+    dns_hostname         = var.dns_hostname
+    tfe-private-ip       = cidrhost(cidrsubnet(var.vpc_cidr, 8, 1), 22)
+    tfe_password         = var.tfe_password
+    dns_zonename         = var.dns_zonename
+    region               = var.region
     tfe_release_sequence = var.tfe_release_sequence
   })
 
