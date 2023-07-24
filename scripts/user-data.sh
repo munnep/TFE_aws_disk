@@ -67,13 +67,13 @@ fi
 
 # if SWAP not in fstab
 # we add it
-grep "$SWAP" /etc/fstab
+grep "swap" /etc/fstab
 if [ $? -ne 0 ]; then
-	echo "$SWAP swap swap defaults 0 0" | tee -a /etc/fstab
+  SWAP_UUID=`blkid $SWAP| awk '{print $2}'`
+	echo "$SWAP_UUID swap swap defaults 0 0" | tee -a /etc/fstab
 	swapon -a
 fi
 
-# docker
 # if DOCKER exists
 # we format if no format
 if [ -b $DOCKER ]; then
@@ -85,9 +85,10 @@ fi
 
 # if DOCKER not in fstab
 # we add it
-grep "$DOCKER" /etc/fstab
+grep "/var/lib/docker" /etc/fstab
 if [ $? -ne 0 ]; then
-	echo "$DOCKER /var/lib/docker xfs defaults 0 0" | tee -a /etc/fstab
+  DOCKER_UUID=`blkid $DOCKER| awk '{print $2}'`
+	echo "$DOCKER_UUID /var/lib/docker xfs defaults 0 0" | tee -a /etc/fstab
 	mkdir -p /var/lib/docker
 	mount -a
 fi
@@ -104,10 +105,11 @@ fi
 
 # if TFE not in fstab
 # we add it
-grep "$TFE" /etc/fstab
+grep "/opt/tfe/data" /etc/fstab
 if [ $? -ne 0 ]; then
-	echo "$TFE /opt/tfe xfs defaults 0 0" | tee -a /etc/fstab
-	mkdir -p /opt/tfe
+  TFE_UUID=`blkid $TFE| awk '{print $2}'`
+	echo "$TFE_UUID /opt/tfe/data xfs defaults 0 0" | tee -a /etc/fstab
+	mkdir -p /opt/tfe/data
 	mount -a
 fi
 
@@ -176,7 +178,14 @@ EOF
 curl -o /var/tmp/install.sh https://install.terraform.io/ptfe/stable
 
 if [ "${tfe_release_sequence}" ] ; then
-  bash /var/tmp/install.sh release-sequence=${tfe_release_sequence} no-proxy private-address=${tfe-private-ip} public-address=${tfe-private-ip}
+  if [ "$TFE_SEQUENCE" -gt 675  ] ; then
+    echo "Install TFE with version ${tfe_release_sequence} and Docker 24"
+    bash /var/tmp/install.sh release-sequence=${tfe_release_sequence} no-proxy private-address=${tfe-private-ip} public-address=${tfe-private-ip}
+  else
+    echo "Install TFE with version ${tfe_release_sequence} and Docker 20.10.17"
+    bash /var/tmp/install.sh docker-version=20.10.17 release-sequence=${tfe_release_sequence} no-proxy private-address=${tfe-private-ip} public-address=${tfe-private-ip}
+  fi 
 else
+  echo "Install latest version TFE with docker version 24"
   bash /var/tmp/install.sh no-proxy private-address=${tfe-private-ip} public-address=${tfe-private-ip}
 fi
