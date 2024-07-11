@@ -56,6 +56,14 @@ resource "aws_security_group" "default-sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+    ingress {
+    description = "http from private ip"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   ingress {
     description = "netdata listening"
     from_port   = 19999
@@ -64,18 +72,74 @@ resource "aws_security_group" "default-sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  ingress {
-    description = "ssh from private ip"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  # ingress {
+  #   description = "ssh from private ip"
+  #   from_port   = 22
+  #   to_port     = 22
+  #   protocol    = "tcp"
+  #   cidr_blocks = ["0.0.0.0/0"]
+  # }
 
   ingress {
     description = "replicated dashboard from internet"
     from_port   = 8800
     to_port     = 8800
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+    ingress {
+    description = "opentelemetry"
+    from_port   = 55679
+    to_port     = 55679
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+      ingress {
+    description = "opentelemetry"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+    ingress {
+    description = "opentelemetry"
+    from_port   = 4317
+    to_port     = 4317
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+      ingress {
+    description = "opentelemetry"
+    from_port   = 55680
+    to_port     = 55680
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+    ingress {
+    description = "opentelemetry"
+    from_port   = 4319
+    to_port     = 4319
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+       ingress {
+    description = "tfe enable metrics"
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+      ingress {
+    description = "tfe enable metrics"
+    from_port   = 9091
+    to_port     = 9091
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -119,6 +183,16 @@ resource "aws_s3_object" "object_license" {
   ]
 
 
+}
+
+# fetch the arn of the SecurityComputeAccess policy
+data "aws_iam_policy" "SecurityComputeAccess" {
+  name = "SecurityComputeAccess"
+}
+# add the SecurityComputeAccess policy to IAM role connected to your EC2 instance
+resource "aws_iam_role_policy_attachment" "SSM" {
+  role       = aws_iam_role.role.name
+  policy_arn = data.aws_iam_policy.SecurityComputeAccess.arn
 }
 
 
@@ -374,6 +448,10 @@ resource "aws_instance" "tfe_server" {
   depends_on = [
     aws_network_interface_sg_attachment.sg_attachment, aws_s3_object.certificate_artifacts_s3_objects
   ]
+
+  lifecycle {
+    ignore_changes = [ ami ]
+  }
 }
 
 resource "aws_volume_attachment" "ebs_att_tfe_swap" {
